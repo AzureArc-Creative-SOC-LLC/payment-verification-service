@@ -52,10 +52,6 @@ function envInt(name, fallback) {
 }
 
 const PORT = envInt('PAYMENT_VERIFICATION_PORT', envInt('PORT', 5004))
-
-// Prefer DATABASE_URL (Supabase Postgres) when set, since the shared env's
-// generic DB_HOST/PORT/USER/PASS/NAME point at the legacy MySQL RDS instance
-// used by services not yet migrated to Postgres.
 const DATABASE_URL = env('DATABASE_URL', '')
 const DB_HOST = env('DB_HOST', 'localhost')
 const DB_PORT = envInt('DB_PORT', 5432)

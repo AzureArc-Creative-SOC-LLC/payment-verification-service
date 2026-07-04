@@ -1,13 +1,4 @@
 // =============================================================================
-// db-adapter.js — drop-in `mysql2/promise`-compatible adapter backed by `pg`.
-//
-// Purpose: let the (originally MySQL) centralordermanagement service talk to a
-// PostgreSQL / Supabase database WITHOUT rewriting the ~10k lines of query code.
-// It exposes the small slice of the mysql2/promise API this service actually
-// uses (createPool -> pool.execute/query/getConnection, connection
-// .execute/query/beginTransaction/commit/rollback/release) and transparently
-// translates MySQL SQL dialect to PostgreSQL on every call.
-//
 // Translations performed:
 //   * `?` positional placeholders            -> `$1, $2, ...`
 //   * backtick identifiers                    -> double quotes
@@ -26,8 +17,7 @@
 // `[rowsOrOkPacket, fields]`. SELECT -> rows array; INSERT/UPDATE/DELETE ->
 // an OkPacket-like object { insertId, affectedRows, changedRows, rows }.
 //
-// Value parsing is tuned to match mysql2: booleans come back as 1/0 and BIGINT
-// as a JS number (not string), so existing comparisons keep working.
+
 // =============================================================================
 
 import pg from 'pg'
