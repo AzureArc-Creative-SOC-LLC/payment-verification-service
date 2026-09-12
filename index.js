@@ -10,6 +10,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import Tesseract from 'tesseract.js'
+import { createDomainMiddleware } from './domainMiddleware.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -105,6 +106,14 @@ const pool = mysql.createPool(
         ssl: { rejectUnauthorized: false },
       }
 )
+
+const domainMiddleware = createDomainMiddleware({
+  lookupDomain: async (name) => {
+    const [rows] = await pool.execute('SELECT id, status FROM domains WHERE domain_name = ?', [name])
+    return rows[0] || null
+  },
+})
+app.use(domainMiddleware)
 
 function normalizeText(s) {
   return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim()
@@ -336,7 +345,7 @@ app.post('/api/payment-verification/verify', async (req, res) => {
     if (!fs.existsSync(imagePath)) return res.status(404).json({ error: 'Screenshot file not found' })
 
     const [rows] = await pool.execute(
-      'SELECT id, order_number, customer_email, customer_name, total, created_at FROM orders WHERE order_number = ? LIMIT 1',
+      'SELECT id, order_number, customer_email, customer_name, total, created_at, domain_id FROM orders WHERE order_number = ? LIMIT 1',
       [orderNumber]
     )
 
@@ -346,6 +355,18 @@ app.post('/api/payment-verification/verify', async (req, res) => {
     const order = orders[0]
     const expectedTotal = Number(order.total || 0)
     if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) return res.status(400).json({ error: 'Order total is invalid' })
+
+    // Soft ownership check: this route is also hit by an internal OCR/automation
+    // flow with no storefront Origin, in which case req.domain falls back to the
+    // default domain rather than a concretely-detected one - only hard-reject
+    // when the caller's domain was genuinely detected (not a default fallback)
+    // and differs from the order's recorded domain; otherwise just log.
+    if (order.domain_id != null && req.domainId != null && order.domain_id !== req.domainId) {
+      if (req.domain && req.domain !== 'alluvi.store') {
+        return res.status(409).json({ error: 'domain_mismatch', message: 'Order belongs to a different storefront' })
+      }
+      console.warn(`[payment-verification] domain mismatch (soft) for order ${orderNumber}: order.domain_id=${order.domain_id} req.domainId=${req.domainId}`)
+    }
 
     const ocrRes = await Tesseract.recognize(imagePath, 'eng', {
       logger: () => {},
