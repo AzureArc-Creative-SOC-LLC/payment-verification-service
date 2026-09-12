@@ -41,9 +41,6 @@ if (loadedEnvPath) {
   console.log(`Loaded environment from: ${loadedEnvPath}`)
 }
 
-if (!DATABASE_URL) {
-  console.warn('DATABASE_URL not set')
-}
 
 function env(name, fallback = '') {
   const v = process.env[name]
@@ -64,6 +61,11 @@ const DB_PORT = envInt('DB_PORT', 5432)
 const DB_USER = env('DB_USER', '')
 const DB_PASS = env('DB_PASS', '')
 const DB_NAME = env('DB_NAME', '')
+
+if (!DATABASE_URL) {
+  console.warn('DATABASE_URL not set')
+}
+
 
 const UPLOADS_DIR = env('UPLOADS_DIR', '/var/www/backend/uploads')
 
